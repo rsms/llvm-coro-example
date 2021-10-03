@@ -1,0 +1,57 @@
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>coro wasm demo</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+</head>
+<body>
+<p>
+  Example from
+  <a href="https://llvm.org/docs/Coroutines.html">"Coroutines in LLVM"</a>
+</p>
+<script type="module">
+(async() => {
+
+function log() {
+  const values = [].slice.call(arguments)
+  console.log.apply(console, values)
+  const p = document.createElement("p")
+  p.innerText = values.join(" ")
+  document.body.appendChild(p)
+}
+
+log("loading wasm module")
+
+const wasm_instantiate = (
+  WebAssembly.instantiateStreaming || ((res, import_obj) =>
+    res.then(r => r.arrayBuffer()).then(buf => WebAssembly.instantiate(buf, import_obj)))
+)
+const memory = new WebAssembly.Memory({ initial: 32 /*pages*/ })
+const import_obj = {
+  env: {
+    memory,
+    print_i32(value) {
+      log(value)
+    },
+  },
+}
+const { instance } = await wasm_instantiate(fetch("coro.wasm"), import_obj)
+
+log("calling wasm main function")
+const main_ret = instance.exports.main(0, 0)
+log("main returned", main_ret)
+
+// show source
+fetch("coro.ll").then(r => r.text()).then(source => {
+  document.body.appendChild(document.createElement("hr"))
+  const pre = document.createElement("pre")
+  pre.innerText = source
+  document.body.appendChild(pre)
+})
+
+})()
+</script>
+</body>
+</html>
